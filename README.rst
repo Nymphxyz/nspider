@@ -5,7 +5,7 @@ NSpider
 Overview
 ========
 
-NSpider (NymphSpider) is a light web crawling and web scraping framework, used to
+NSpider (NymphSpider) is a light multi-process web crawling and web scraping framework, used to
 crawl websites and extract resource files from their pages. It can be used for
 resources downloading and data collection.
 

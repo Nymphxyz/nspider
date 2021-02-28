@@ -140,6 +140,5 @@ cython_debug/
 # Custom
 .idea/
 .cache/
-/logs/
-/test/
+logs/
 /nspider.vpd

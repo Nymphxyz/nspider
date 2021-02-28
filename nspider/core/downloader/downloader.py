@@ -95,6 +95,9 @@ class Downloader(object):
         self.log.logger.info("Fetcher put all resources in the queue, now waiting for workers finish jobs")
         self.resource_queue.join()
 
+    def before_download(self, resource):
+        return resource
+
     def __worker_process(self, name):
         self.log.logger.info("Worker {} start to work".format(name))
         c = self.conn.cursor()
@@ -103,7 +106,9 @@ class Downloader(object):
             while True:
                 if self.tps_bucket.get_token():
                     break
-
+            resource = self.before_download(resource)
+            if not resource:
+                raise Exception("function before_download must return resource object")
             self.log.logger.info("Worker {} trying downloading {}".format(name, resource.url))
             res = self.download(resource)
             if res:
@@ -123,5 +128,6 @@ class Downloader(object):
     def download(self, resource):
         return common.download(resource.url, filename=resource.filename, save_dir=resource.save_dir, stream=resource.stream,
                                verbose=resource.verbose, try_num=resource.try_num, fix_type=resource.fix_type, cookies=resource.cookies,
-                      headers=resource.headers, params=resource.params, data=resource.data, session=resource.session, log=self.log.logger.info,
+                      headers=resource.headers, params=resource.params, data=resource.data, session=resource.session, proxies=resource.proxies,
+                               log=self.log.logger.info,
                                log_exception=self.log.logger.exception)

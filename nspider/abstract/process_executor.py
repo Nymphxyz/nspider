@@ -23,7 +23,7 @@ class ProcessExecutor(Process, metaclass=ABCMeta):
                  MAX_POOL_SIZE: int,
                  KEEP_ALIVE_TIME: float,
                  RETYR_NUM: int,
-                 Worker,
+                 worker_class,
                  TPS=-1):
         super().__init__()
         self.__stop_signal = False
@@ -43,7 +43,7 @@ class ProcessExecutor(Process, metaclass=ABCMeta):
         self.KEEP_ALIVE_TIME = KEEP_ALIVE_TIME
 
         self.job_queue = JoinableQueue(self.MAX_POOL_SIZE * 2)
-        self.Worker = Worker
+        self.worker_class = worker_class
 
         self.workers = {}
         self.worker_states = {}
@@ -88,7 +88,7 @@ class ProcessExecutor(Process, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def create_worker(self, is_core=True, init_job=None) -> object:
+    def create_worker(self, worker_class, is_core=True, init_job=None) -> object:
         raise NotImplementedError
 
     def update_worker_state(self, id_, state):
@@ -108,13 +108,13 @@ class ProcessExecutor(Process, metaclass=ABCMeta):
             job = self.get_job()
             # self.logger.info(self.worker_states)
             if self.worker_count < self.CORE_POOL_SIZE:
-                core_worker = self.create_worker(str(self.__get_first_empty_worker_id()), is_core=True, init_job=job)
+                core_worker = self.create_worker(self.worker_class, str(self.__get_first_empty_worker_id()), is_core=True, init_job=job)
                 self.workers[str(core_worker.id)] = core_worker
                 self.update_worker_state(core_worker.id, const.WORKER_INIT)
                 core_worker.start()
             elif self.job_queue.full():
                 if self.worker_count < self.MAX_POOL_SIZE:
-                    non_core_worker = self.create_worker(str(self.__get_first_empty_worker_id()), is_core=False, init_job=job)
+                    non_core_worker = self.create_worker(self.worker_class, str(self.__get_first_empty_worker_id()), is_core=False, init_job=job)
                     self.workers[str(non_core_worker.id)]= non_core_worker
                     self.update_worker_state(non_core_worker.id, const.WORKER_INIT)
                     non_core_worker.start()

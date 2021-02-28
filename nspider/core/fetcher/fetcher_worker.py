@@ -24,7 +24,13 @@ class FetcherWorker(ProcessExecutorWorker):
     def apply_job(self, job):
         self.apply_request(job)
 
+    def before_apply_request(self, request):
+        return request
+
     def apply_request(self, request):
+        request = self.before_apply_request(request)
+        if not request:
+            raise Exception("function before_download must return request object")
         #   time.sleep(0.01)
         for i in range(self.RETRY_NUM):
             while True:

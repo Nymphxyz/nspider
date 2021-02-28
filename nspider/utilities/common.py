@@ -106,7 +106,7 @@ def if_blank_return(input, default) -> object:
     return input
 
 def download(url, filename=None, save_dir=None, stream=True, chunk_size=1024*1024*2, verbose=False, try_num=2, fix_type=True, cookies=None,
-                      headers=None, params=None, data=None, session=requests.session(), log = print, log_exception = print):
+                      headers=None, params=None, data=None, proxies=None, session=requests.session(), log = print, log_exception = print):
     """
     调用requests库的分流下载
     url 资源下载地址
@@ -130,7 +130,7 @@ def download(url, filename=None, save_dir=None, stream=True, chunk_size=1024*102
 
     for i in range(0, try_num):
         try:
-            resource = session.get(url, stream=stream, headers=headers, cookies=cookies, params=params, data=data)
+            resource = session.get(url, stream=stream, headers=headers, cookies=cookies, params=params, data=data, proxies=proxies)
 
             if (resource.status_code == 200):
                 is_chunked = resource.headers.get('transfer-encoding', '') == 'chunked'
@@ -208,3 +208,12 @@ def download(url, filename=None, save_dir=None, stream=True, chunk_size=1024*102
                 log("Download Failed! [url]:{} Caused by:".format(url))
                 log_exception(err)
                 return False
+
+def str_2_dict(str, split=";"):
+    dct = {}
+    lst = str.split(split)
+    for i in lst:
+        name = i.split('=')[0].strip()
+        value = i.split('=')[1].strip()
+        dct[name] = value
+    return dct

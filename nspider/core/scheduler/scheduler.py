@@ -65,7 +65,7 @@ class Scheduler(Process):
         create_request_buffer_table = "CREATE TABLE if not exists {} (id INTEGER PRIMARY KEY, {} BLOB)".format(const.REQUEST_BUFFER_TABLE, const.COLUMN_NAME_PARAMS)
         create_request_failed_table = "CREATE TABLE if not exists {} ({} TEXT PRIMARY KEY, {} BLOB)".format(const.REQUEST_FAILED_TABLE, const.COLUMN_NAME_FINGERPRINT, const.COLUMN_NAME_REQUEST)
         create_request_in_process_table = "CREATE TABLE if not exists {} (id INTEGER PRIMARY KEY, {} TEXT, {} BLOB)".format(const.REQUEST_IN_PROCESS_TABLE, const.COLUMN_NAME_FINGERPRINT, const.COLUMN_NAME_REQUEST)
-        create_request_parse_table = "CREATE TABLE if not exists {} ({} TEXT PRIMARY KEY, {} BLOB)".format(const.REQUEST_PARSE_TABLE, const.COLUMN_NAME_FINGERPRINT, const.COLUMN_NAME_REQUEST)
+        create_request_parse_table = "CREATE TABLE if not exists {} (id INTEGER PRIMARY KEY, {} TEXT, {} BLOB)".format(const.REQUEST_PARSE_TABLE, const.COLUMN_NAME_FINGERPRINT, const.COLUMN_NAME_REQUEST)
         create_request_parse_failed_table = "CREATE TABLE if not exists {} ({} TEXT PRIMARY KEY, {} BLOB)".format(const.REQUEST_PARSE_FAILED_TABLE, const.COLUMN_NAME_FINGERPRINT, const.COLUMN_NAME_REQUEST)
 
         tables = [create_request_in_process_table, create_request_buffer_table, create_request_done_table, create_request_failed_table, create_request_parse_table, create_request_parse_failed_table]
@@ -78,14 +78,21 @@ class Scheduler(Process):
     def __load_cache(self):
         c = self.conn.cursor()
 
-        requests_parse = c.execute("SELECT * FROM {}".format(const.REQUEST_PARSE_TABLE))
-        for r in requests_parse:
-            self.__add_request(self.c, new_request=pickle.loads(r[1]))
-
         in_process_requests = c.execute("SELECT * FROM {}".format(const.REQUEST_IN_PROCESS_TABLE))
         for r in in_process_requests:
-            self.__add_request(self.c, new_request=pickle.loads(r[2]))
+            new_request = pickle.loads(r[2])
+            self.__inner_request_queue.put(new_request)
             self.__request_in_process_fingerprint.add(r[1])
+            self.logger.info("Re-added request which still in processing: {}".format(new_request.url))
+
+        requests_parse = c.execute("SELECT * FROM {}".format(const.REQUEST_PARSE_TABLE))
+        for r in requests_parse:
+            new_request = pickle.loads(r[2])
+            self.__add_request(self.c, new_request=new_request)
+            # pretend parse is done, delete this data now. It will add to request_parse later anyway.
+            self.parse_done(self.c, r[1])
+            self.logger.info("Re-added request which still in parsing or failed to parse: {}".format(new_request.url))
+
 
         requests_done = c.execute("SELECT * FROM {}".format(const.REQUEST_DONE_TABLE))
         for r in requests_done:
@@ -229,7 +236,7 @@ class Scheduler(Process):
         self.__request_in_process_fingerprint.discard(fingerprint)
 
         c.execute("INSERT OR IGNORE INTO {}({}) VALUES (?)".format(const.REQUEST_DONE_TABLE, const.COLUMN_NAME_FINGERPRINT), (fingerprint, ))
-        c.execute("DELETE FROM {} WHERE id IN (SELECT id FROM {} WHERE {}=? ORDER BY id LIMIT 1);".format(const.REQUEST_IN_PROCESS_TABLE, const.REQUEST_IN_PROCESS_TABLE, const.COLUMN_NAME_FINGERPRINT), (fingerprint, ))
+        c.execute("DELETE FROM {} WHERE id IN (SELECT id FROM {} WHERE {}=? ORDER BY id LIMIT 1)".format(const.REQUEST_IN_PROCESS_TABLE, const.REQUEST_IN_PROCESS_TABLE, const.COLUMN_NAME_FINGERPRINT), (fingerprint, ))
 
     def request_failed(self, c, request: Request):
         self.__request_failed.add(request)
@@ -242,7 +249,7 @@ class Scheduler(Process):
                   (request.fingerprint, pickle.dumps(request),))
 
     def parse_done(self, c, fingerprint):
-        c.execute("DELETE FROM {} WHERE {}=?".format(const.REQUEST_PARSE_TABLE, const.COLUMN_NAME_FINGERPRINT),
+        c.execute("DELETE FROM {} WHERE id IN (SELECT id FROM {} WHERE {}=? ORDER BY id LIMIT 1)".format(const.REQUEST_PARSE_TABLE, const.REQUEST_PARSE_TABLE, const.COLUMN_NAME_FINGERPRINT),
                   (fingerprint,))
 
     def parse_failed(self, c, request: Request):

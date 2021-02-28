@@ -10,7 +10,6 @@
 
 import time
 
-from .fetcher_worker import FetcherWorker
 from nspider.core.tps_bucket import TPSBucket
 from nspider.abstract.process_executor import ProcessExecutor
 
@@ -26,10 +25,10 @@ class Fetcher(ProcessExecutor):
         self.tps_bucket = TPSBucket(expected_tps=self.TPS)
         self.tps_bucket.start()
 
-    def create_worker(self, id_, is_core, init_job):
+    def create_worker(self, worker_class, id_, is_core, init_job):
         if is_core:
             self.logger.info("Create core fetcher worker {}".format(id_))
-            worker = FetcherWorker(id_,
+            worker = worker_class(id_,
                                    "fetcher worker " + id_,
                                    self,
                                    self.shared_memory_handler,
@@ -38,7 +37,7 @@ class Fetcher(ProcessExecutor):
                                    init_job=init_job)
         else:
             self.logger.info("Create none core fetcher worker {}".format(id_))
-            worker = FetcherWorker(id_,
+            worker = worker_class(id_,
                                    "fetcher worker " + id_,
                                    self,
                                    self.shared_memory_handler,

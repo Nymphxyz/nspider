@@ -21,7 +21,7 @@ class Settings(object):
                  r'Safari/537.36 '
     HEADERS = {'User-Agent': USER_AGENT}
 
-    __RECOMMEND_MAX_WORKERS = os.cpu_count() * 5
+    __RECOMMEND_MAX_WORKERS = os.cpu_count() * 3
 
     # Transactions Per Second
     TPS = 3

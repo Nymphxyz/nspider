@@ -12,11 +12,11 @@ def readme_file():
         return f.read()
 
 setup(name="nspider",
-      version="0.1.0",
-      description="A light web resources crawling framework",
+      version="0.2.0",
+      description="A light multi-process web resources crawling framework",
       long_description=readme_file(),
       license="MIT",
-      packages=find_packages(exclude=["lib", "img"]),
+      packages=find_packages(exclude=["demo", "img"]),
       author="Nymphxyz",
       author_email="xyz.hack666@gmail.com",
       url="https://github.com/Nymphxyz/nspider",

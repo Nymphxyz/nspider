@@ -15,6 +15,7 @@ from nspider.core.analyzer.analyzer import Analyzer
 from nspider.core.scheduler.scheduler import Scheduler
 from .shared_memory_handler import SharedMemoryHandler
 from nspider.core.fetcher.fetcher_worker import FetcherWorker
+from nspider.core.analyzer.analyzer_worker import AnalyzerWorker
 
 # TODO: set session kookie set start request's attributes
 class Spider(object):
@@ -25,8 +26,11 @@ class Spider(object):
     start_COOKIES = {}
     start_headers = Settings.HEADERS
 
+    start_in_process_filter=True
+    start_dupe_filter=True
 
-    def __init__(self, settings=Settings(), use_cache=True):
+    def __init__(self, settings=Settings(), use_cache=True,
+                 fetcher_worker_class=FetcherWorker, analyzer_worker_class=AnalyzerWorker):
         assert isinstance(settings, Settings), "Variable settings is not a Settings type: %r" % settings
 
         settings.DB = self.name() + ".db"
@@ -57,7 +61,7 @@ class Spider(object):
                                self.settings.MAX_FETCHER_WORKER_POOL_SIZE,
                                self.settings.KEEP_ALIVE_TIME_FOR_NON_CORE_THREAD,
                                self.settings.RETRY_NUM,
-                               FetcherWorker,
+                               fetcher_worker_class,
                                TPS=self.settings.TPS)
 
         self.log.logger.info("Init analyzer...")
@@ -67,7 +71,7 @@ class Spider(object):
                                self.settings.MAX_FETCHER_WORKER_POOL_SIZE,
                                self.settings.KEEP_ALIVE_TIME_FOR_NON_CORE_THREAD,
                                self.settings.RETRY_NUM,
-                               FetcherWorker)
+                               analyzer_worker_class)
 
     def start(self):
         self.scheduler.daemon = True
@@ -79,7 +83,9 @@ class Spider(object):
         self.analyzer.start()
 
         try:
-            self.requests(self.start_url, parser_classes=self.start_parser, cookies=self.start_COOKIES, session=self.start_session, proxies=self.start_proxies, headers=self.start_headers)
+            self.requests(self.start_url, parser_classes=self.start_parser, cookies=self.start_COOKIES,
+                          session=self.start_session, proxies=self.start_proxies, headers=self.start_headers,
+                          in_process_filter=self.start_in_process_filter, dupe_filter=self.start_dupe_filter)
         except Exception as err:
             self.scheduler.kill()
             self.fetcher.kill()
@@ -90,17 +96,21 @@ class Spider(object):
             self.fetcher.join()
             self.analyzer.join()
 
-    def request(self, url: str, parser_class=None, cookies=None, session=None, proxies=None, headers=None):
+    def request(self, url: str, parser_class=None, cookies=None, session=None, proxies=None, headers=None,
+                in_process_filter=True, dupe_filter=True):
         if not url:
             raise Exception("No URL specified!")
 
         if not session:
             session = requests.session()
 
-        self.shared_memory_handler.add_request_in_buffer(url, parser_class if parser_class else None, cookies=cookies, session=session, proxies=proxies, headers=headers)
+        self.shared_memory_handler.add_request_in_buffer(url, parser_class if parser_class else None, cookies=cookies,
+                                                         session=session, proxies=proxies, headers=headers,
+                                                         in_process_filter=in_process_filter, dupe_filter=dupe_filter)
         self.log.logger.debug("Added request: {}".format(url))
 
-    def requests(self, urls: list, parser_classes=None, cookies=None, session=None, proxies=None, headers=None):
+    def requests(self, urls: list, parser_classes=None, cookies=None, session=None, proxies=None, headers=None, in_process_filter=True,
+    dupe_filter=True):
         if not urls:
             raise Exception("No URLs specified!")
 
@@ -110,10 +120,12 @@ class Spider(object):
                     raise Exception("Can‘t match parse with URL")
                 else:
                     for index, url in enumerate(urls):
-                        self.request(url, parser_class=parser_classes[index], cookies=cookies, session=session, proxies=proxies, headers=headers)
+                        self.request(url, parser_class=parser_classes[index], cookies=cookies, session=session, proxies=proxies, headers=headers,
+                                     in_process_filter=in_process_filter, dupe_filter=dupe_filter)
             else:
                 for url in urls:
-                    self.request(url, parser_class=parser_classes[0], cookies=cookies, session=session, proxies=proxies, headers=headers)
+                    self.request(url, parser_class=parser_classes[0], cookies=cookies, session=session, proxies=proxies, headers=headers,
+                                     in_process_filter=in_process_filter, dupe_filter=dupe_filter)
 
     @classmethod
     def name(cls):

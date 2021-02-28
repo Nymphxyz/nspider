@@ -1,0 +1,15 @@
+VERSION: 0.2.0
+TIME: 2021.2.27
+DESCRIPTION: Fix bugs
+Fix:
+1. 修复了load cache时重复往数据库添加数据的bug
+NEW:
+1. 更改parse failed调用逻辑
+2. 增加start url的过滤选项
+3. 增加Demo文件
+4. 框架初始化逻辑更改
+
+
+VERSION: 0.1.0
+TIME: 2021.2.27
+DESCRIPTION: Initial version

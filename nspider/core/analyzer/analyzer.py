@@ -8,7 +8,6 @@
 import time
 from multiprocessing import JoinableQueue
 
-from .analyzer_worker import AnalyzerWorker
 from nspider.abstract.process_executor import ProcessExecutor
 
 
@@ -21,14 +20,14 @@ class Analyzer(ProcessExecutor):
                  MAX_POOL_SIZE: int,
                  KEEP_ALIVE_TIME: float,
                  RETYR_NUM: int,
-                 Worker):
+                 worker_class):
         super().__init__(name,
                  shared_memory_handler,
                  CORE_POOL_SIZE,
                  MAX_POOL_SIZE,
                  KEEP_ALIVE_TIME,
                  RETYR_NUM,
-                 Worker)
+                 worker_class)
         self.__request_buffer_queue = JoinableQueue(-1)
         self.fusing_flag = False
 
@@ -39,10 +38,10 @@ class Analyzer(ProcessExecutor):
         self.logger.debug("get parse data from scheduler queue: {}".format(time.time()))
         return (response, request)
 
-    def create_worker(self, id_, is_core, init_job):
+    def create_worker(self, worker_class, id_, is_core, init_job):
         if is_core:
             self.logger.info("Create core analyzer worker {}".format(id_))
-            worker = AnalyzerWorker(id_,
+            worker = worker_class(id_,
                                    "analyzer worker " + id_,
                                    self,
                                    self.shared_memory_handler,
@@ -51,7 +50,7 @@ class Analyzer(ProcessExecutor):
                                    init_job=init_job)
         else:
             self.logger.info("Create none core analyzer worker {}".format(id_))
-            worker = AnalyzerWorker(id_,
+            worker = worker_class(id_,
                                    "analyzer worker " + id_,
                                    self,
                                    self.shared_memory_handler,
@@ -83,6 +82,9 @@ class Analyzer(ProcessExecutor):
             else:
                 for url in urls:
                     self.request(url, parser_class=parser_classes[0])
+
+    def parse_done(self, request):
+        self.shared_memory_handler.parse_done(request)
 
     def parse_failed(self, request):
         self.shared_memory_handler.parse_failed(request)

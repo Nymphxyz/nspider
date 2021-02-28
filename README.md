@@ -50,6 +50,8 @@ class PageContentParser(nspider.Parser):
     
     # parser为必须实现的方法， request 参数为 nspider 中的自定义 request 类， response 为 requests 库的标准返回对象。
     def parse(self, request, response):
+        # 用于返回值
+        is_failed = False
         # 解析页面逻辑，随意编写，这里使用了 nspider 自带的一些方法
         # get_text_from_res 可以把 response 转为纯文本
         text = nspider.common.get_text_from_res(response)
@@ -79,11 +81,11 @@ class PageContentParser(nspider.Parser):
         # 如果 content 为 空 说明解析失败，意味着response 返回的东西并不是我们所预计的东西，
         # 有可能触发了百度的反爬机制，返回了一个验证页面。
         else:
-            # 你可以选择调用 parse_failed 方法，把该次相关的请求记录到数据库中。
-            self.parse_failed(request)
+            # 告诉框架该次 解析 失败
+            is_failed = True
             self.logger.info("URL: {} parser failed".format(request.url))
-        # 返回一个对象
-        return None
+        # 返回一个任意对象，以及是否解析成功
+        return None, is_failed
 
 # 定义一个 spider 类
 # 指定初始 url 和 对应的 parser
@@ -126,6 +128,8 @@ if __name__ == "__main__":
     # 你需要指定下载的是哪个 parser 添加的资源文件
     downloader.start(PageContentParser)
 ```
+
+关于如何下载一个吧里所有的图片请暂时查看 `demo/tieba` 下的文件作为参考
 
 ## 参考
 

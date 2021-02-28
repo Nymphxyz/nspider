@@ -35,9 +35,12 @@ class Parser(MultiThreadSingleton, metaclass=ABCMeta):
         self.analyzer_handler = analyzer_handler
         self.logger = analyzer_handler.logger
         try:
-            obj = self.parse(request, response)
+            obj, is_failed = self.parse(request, response)
             self.pipeline(obj)
-            analyzer_handler.shared_memory_handler.parse_done(request)
+            if is_failed:
+                analyzer_handler.parse_failed(request)
+            else:
+                analyzer_handler.parse_done(request)
         except Exception as err:
             raise err
 
@@ -57,9 +60,6 @@ class Parser(MultiThreadSingleton, metaclass=ABCMeta):
 
     def requests(self, *args, **kwargs):
         self.analyzer_handler.requests(*args, **kwargs)
-
-    def parse_failed(self, *args, **kwargs):
-        self.analyzer_handler.parse_failed(*args, **kwargs)
 
     def save(self, data: object):
         c = self.conn.cursor()
